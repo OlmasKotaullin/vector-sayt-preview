@@ -774,7 +774,7 @@ dialog{border:0;border-radius:16px;width:min(520px,calc(100% - 32px));padding:45
 .case-slide .fv-money-label{color:#ffffffd9}
 .case-slide .fv-panel:not(.fv-result) .fv-money-label{color:var(--c-muted)}
 .fv-product{font:600 24px/1.2 var(--display);letter-spacing:-.03em;color:var(--c-ink)}
-.fv-dumbs{display:grid;gap:22px;margin-top:20px;padding-top:16px;border-top:1px solid #ffffff33}
+.fv-dumbs{display:grid;gap:22px;margin-top:20px;padding-top:16px;padding-bottom:16px;border-top:1px solid #ffffff33}
 .fv-dumbs .dumb-row p{color:#ffffffd9;margin-bottom:24px}.fv-dumbs .dumb-track::before{background:#ffffff40}.fv-dumbs .dumb-line{background:#fff}
 .fv-dumbs .dumb-a{background:transparent;box-shadow:inset 0 0 0 3px #ffffffa6}.fv-dumbs .dumb-b{background:#fff;box-shadow:0 0 0 4px #ffffff40}
 .fv-dumbs .dumb-a em{color:#ffffffbf}.fv-dumbs .dumb-b em{color:#fff}
@@ -812,6 +812,13 @@ dialog{border:0;border-radius:16px;width:min(520px,calc(100% - 32px));padding:45
 @media(prefers-reduced-motion:reduce){.client-track{animation-play-state:paused}}
 .reveal{opacity:0;transform:translateY(22px);transition:opacity .7s cubic-bezier(.16,1,.3,1) var(--rd,0ms),transform .8s cubic-bezier(.16,1,.3,1) var(--rd,0ms)}
 .reveal.is-in{opacity:1;transform:none}
+/* Carousel v4: transform rail, no native scroll snapping. */
+.case-track{--case-gap:20px;display:block;overflow:hidden;scroll-snap-type:none;touch-action:pan-y;margin-top:16px;border-radius:24px}
+.case-rail{display:flex;gap:var(--case-gap);transition:transform .6s cubic-bezier(.22,.8,.2,1);will-change:transform}
+.case-slide{scroll-snap-align:none;transition:opacity .4s}.case-slide[aria-hidden=true]{opacity:.35}
+.case-slide .feature-copy{justify-content:center}.case-slide .feature-steps{margin-top:0;padding-top:34px}
+@media(max-width:600px){.case-track{--case-gap:12px;border-radius:20px}.case-tabs{margin:0 -18px;padding:0 18px;scroll-padding:0 18px}}
+@media(prefers-reduced-motion:reduce){.case-rail{transition:none}}
 </style></head><body><div id="app"></div><noscript>Чтобы открыть интерактивный разбор Vector, включите JavaScript в браузере.</noscript>
 <script>const content = {
   "title": "Vector | Что изменить для роста продаж",
@@ -2243,7 +2250,7 @@ const renderCases = () => {
       <p class="cases-roi"><b data-count="${parseInt(k.roi.value)}" data-suffix="%">${escapeText(k.roi.value)}</b><span>${escapeText(k.roi.label)}</span></p></div>
     <div class="case-carousel" aria-labelledby="cases-heading">
       <div class="case-tabs" role="tablist" aria-label="Кейсы">${k.slides.map((c,i)=>`<button type="button" role="tab" class="case-tab theme-${c.id}" aria-selected="${i===0}" aria-controls="case-${c.id}" data-case="${i}"><span>${pad2(i+1)}</span><b>${escapeText(c.tag)}</b><em>${escapeText(c.short)}</em></button>`).join('')}</div>
-      <div class="case-track" tabindex="0" aria-label="Кейсы, листайте вбок">${k.slides.map((c,i)=>renderCaseSlide(c,i,k)).join('')}</div>
+      <div class="case-track"><div class="case-rail">${k.slides.map((c,i)=>renderCaseSlide(c,i,k)).join('')}</div></div>
       <div class="case-nav"><button type="button" class="case-arrow" data-dir="-1" aria-label="${escapeText(k.prev)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 6-6 6 6 6"/></svg></button><span class="case-count" aria-live="polite">01 / ${pad2(k.slides.length)}</span><button type="button" class="case-arrow" data-dir="1" aria-label="${escapeText(k.next)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m10 6 6 6-6 6"/></svg></button></div>
     </div>
   </div>`;
@@ -2314,18 +2321,29 @@ const initInside = () => {
   const watch=new IntersectionObserver(entries=>entries.forEach(entry=>{
     if(!entry.isIntersecting)return;watch.unobserve(entry.target);entry.target.classList.add('is-shown');counters(entry.target);
   }),{threshold:.25});
-  document.querySelectorAll('.cases-roi,.case-slide').forEach(el=>watch.observe(el));
+  document.querySelectorAll('.cases-roi').forEach(el=>watch.observe(el));
   const track=document.querySelector('.case-track');if(!track)return;
-  const slides=[...track.children],tabs=[...document.querySelectorAll('.case-tab')],count=document.querySelector('.case-count');
+  const caseRail=track.querySelector('.case-rail'),slides=[...caseRail.children],tabs=[...document.querySelectorAll('.case-tab')],count=document.querySelector('.case-count'),arrows=[...document.querySelectorAll('.case-arrow')];
   let active=0;
-  const mark=i=>{active=i;tabs.forEach((t,j)=>{t.setAttribute('aria-selected',String(j===i));t.tabIndex=j===i?0:-1;});count.textContent=`${pad2(i+1)} / ${pad2(slides.length)}`;
-    document.querySelectorAll('.case-arrow').forEach(b=>b.disabled=(b.dataset.dir==='-1'&&i===0)||(b.dataset.dir==='1'&&i===slides.length-1));
-    if(innerWidth<=850)tabs[i].scrollIntoView({block:'nearest',inline:'center',behavior:reduced.matches?'instant':'smooth'});};
-  const go=i=>{i=Math.max(0,Math.min(slides.length-1,i));track.scrollTo({left:slides[i].offsetLeft-track.offsetLeft,behavior:reduced.matches?'instant':'smooth'});mark(i);};
-  tabs.forEach((t,i)=>{t.addEventListener('click',()=>go(i));t.addEventListener('keydown',e=>{if(e.key==='ArrowRight'||e.key==='ArrowLeft'){e.preventDefault();const n=Math.max(0,Math.min(tabs.length-1,i+(e.key==='ArrowRight'?1:-1)));go(n);tabs[n].focus();}});});
-  document.querySelectorAll('.case-arrow').forEach(b=>b.addEventListener('click',()=>go(active+Number(b.dataset.dir))));
-  let raf=0;track.addEventListener('scroll',()=>{cancelAnimationFrame(raf);raf=requestAnimationFrame(()=>{const i=Math.round(track.scrollLeft/track.clientWidth);if(i!==active)mark(i);});},{passive:true});
-  mark(0);
+  const go=(i,focusTab)=>{
+    i=Math.max(0,Math.min(slides.length-1,i));active=i;
+    caseRail.style.transform=`translateX(calc(${-i} * (100% + var(--case-gap))))`;
+    slides.forEach((sl,j)=>{const on=j===i;sl.inert=!on;sl.setAttribute('aria-hidden',String(!on));if(on&&!sl.classList.contains('is-shown')){sl.classList.add('is-shown');counters(sl);}});
+    tabs.forEach((t,j)=>{t.setAttribute('aria-selected',String(j===i));t.tabIndex=j===i?0:-1;});
+    count.textContent=`${pad2(i+1)} / ${pad2(slides.length)}`;
+    arrows.forEach(b=>b.disabled=(b.dataset.dir==='-1'&&i===0)||(b.dataset.dir==='1'&&i===slides.length-1));
+    if(innerWidth<=850)tabs[i].scrollIntoView({block:'nearest',inline:'center',behavior:reduced.matches?'instant':'smooth'});
+    if(focusTab)tabs[i].focus();
+  };
+  tabs.forEach((t,i)=>{t.addEventListener('click',()=>go(i));t.addEventListener('keydown',e=>{if(e.key==='ArrowRight'||e.key==='ArrowLeft'){e.preventDefault();go(active+(e.key==='ArrowRight'?1:-1),true);}});});
+  arrows.forEach(b=>b.addEventListener('click',()=>go(active+Number(b.dataset.dir))));
+  let x0=null,y0=0;
+  track.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse')return;x0=e.clientX;y0=e.clientY;});
+  track.addEventListener('pointerup',e=>{if(x0===null)return;const dx=e.clientX-x0,dy=e.clientY-y0;x0=null;if(Math.abs(dx)>50&&Math.abs(dx)>Math.abs(dy)*1.2)go(active+(dx<0?1:-1));});
+  track.addEventListener('pointercancel',()=>{x0=null;});
+  slides.forEach((sl,j)=>{if(j){sl.inert=true;sl.setAttribute('aria-hidden','true');}});
+  watch.unobserve?.(slides[0]);
+  go(0);slides[0].classList.remove('is-shown');watch.observe(slides[0]);
 };
 const renderContinuation = () => {
   const p=content.people;
